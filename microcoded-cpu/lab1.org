@@ -1,0 +1,249 @@
+#+TITLE: Lab 1
+#+AUTHOR: Kacper Uminski, Alfred Sjöqvist
+
+* Lathund:
+** 1-bit
+| NUM | S                           | P    |
+|-----+-----------------------------+------|
+|   0 | GRx-mux styrs av GRx-fältet | NOP  |
+|   1 | GRx-mux styrs av M-fältet   | PC++ |
+
+** 2-bit
+| NUM | LC      |
+|-----+---------|
+|  00 | NOP     |
+|  01 | LC--    |
+|  10 | LC=Buss |
+|  11 | LC=uADR |
+
+** 3-bit
+| NUM | TB      | FB  |
+|-----+---------+-----|
+| 000 | NOP     | NOP |
+| 001 | IR      | IR  |
+| 010 | PM      | PM  |
+| 011 | PC      | PC  |
+| 100 | AR      | -   |
+| 101 | HR      | HR  |
+| 110 | GRx     | GRx |
+| 111 | Styrord | ASR |
+
+** 4-bit
+|  NUM | ALU                     | SEQ         |
+|------+-------------------------+-------------|
+| 0000 | NOP                     | uPC++       |
+| 0001 | Buss                    | uPC=K1      |
+| 0010 | Buss' (ettkomplement)   | uPC=K2      |
+| 0011 | 0                       | uPC=0       |
+| 0100 | AR+Buss                 | Hopp om Z=0 |
+| 0101 | AR-Buss                 | uPC=uADR    |
+| 0110 | AR & Buss               | uJSR uADR   |
+| 0111 | AR OR Buss              | uRTS        |
+| 1000 | AR+Buss (inga flaggor)  | Hopp om Z=1 |
+| 1001 | AR << 1                 | Hopp om N=1 |
+| 1010 | ARHR << 1               | Hopp om C=1 |
+| 1011 | AR >> 1 (aritmetiskt)   | Hopp om O=1 |
+| 1100 | ARHR >> 1 (aritmetiskt) | Hopp om L=1 |
+| 1101 | AR >> 1 (logiskt)       | Hopp om C=0 |
+| 1110 | Rotera AR åt vänster    | Hopp om O=0 |
+| 1111 | Rotera ARHR åt vänster  | HALT        |
+
+* Uppgift 1:
+** uPROG
+| ADR |  ALU |  TB |  FB | S | P | LC |  SEQ |    uADR | HEX | Kommentar                                                   |
+|-----+------+-----+-----+---+---+----+------+---------+-----+-------------------------------------------------------------|
+|  00 | 0000 | 011 | 111 | 0 | 0 | 00 | 0000 | 0000000 |     | ASR := PC                                                   |
+|  01 | 0000 | 010 | 001 | 0 | 1 | 00 | 0000 | 0000000 |     | IR := PM, PC++                                              |
+|  02 | 0000 | 000 | 000 | 0 | 0 | 00 | 0010 | 0000000 |     | uPC := K2(M-fältet)                                         |
+|  03 | 0000 | 001 | 111 | 0 | 0 | 00 | 0001 | 0000000 |     | ASR := IR, uPC := K1(OP-fältet)       ; Direktaddressering  |
+|  04 | 0000 | 011 | 111 | 0 | 1 | 00 | 0001 | 0000000 |     | ASR := PC, PC++, uPC := K1(OP-fältet) ; Immediate           |
+|  05 | 0000 | 001 | 111 | 0 | 0 | 00 | 0000 | 0000000 |     | ASR := IR ; Indirekt                                        |
+|  06 | 0000 | 010 | 111 | 0 | 0 | 00 | 0001 | 0000000 |     | ASR := PM, uPC := K1(OP-fältet) ; Se kommentar i Uppgift 3  |
+|  07 | 0001 | 001 | 000 | 0 | 0 | 00 | 0000 | 0000000 |     | AR := IR ; Indexerad adressering                            |
+|  08 | 1000 | 110 | 000 | 1 | 0 | 00 | 0000 | 0000000 |     | AR := GR3+AR                                                |
+|  09 | 0000 | 100 | 111 | 0 | 0 | 00 | 0001 | 0000000 |     | ASR := AR, uPC := K1(OP-fältet)                             |
+|  0A | 0000 | 000 | 000 | 0 | 0 | 00 | 1111 | 0000000 |     | --HALT                                                      |
+|  0B | 0000 | 010 | 110 | 0 | 0 | 00 | 0011 | 0000000 |     | --LOAD GRx,M,ADR: GRx := PM(A), uPC := 0                    |
+|  0C | 0000 | 110 | 010 | 0 | 0 | 00 | 0011 | 0000000 |     | --STORE GRx,M,ADR: PM(A) := GRx, uPC := 0                   |
+|  0D | 0001 | 110 | 000 | 0 | 0 | 00 | 0000 | 0000000 |     | --ADD GRx,M,ADR: GRx := GRx+PM(A) ; AR := GRx, uPC := 0     |
+|  0E | 0100 | 010 | 000 | 0 | 0 | 00 | 0000 | 0000000 |     | AR := AR + PM(A)                                            |
+|  0F | 0000 | 100 | 110 | 0 | 0 | 00 | 0011 | 0000000 |     | GRx := AR, uPC := 0                                         |
+|  10 | 0001 | 110 | 000 | 0 | 0 | 00 | 0000 | 0000000 |     | --SUB GRx,M,ADR: GRx := GRx-PM(A) ; AR := GRx               |
+|  11 | 0101 | 010 | 000 | 0 | 0 | 00 | 0000 | 0000000 |     | AR := AR - PM(A)                                            |
+|  12 | 0000 | 100 | 110 | 0 | 0 | 00 | 0011 | 0000000 |     | GRx := AR, uPC := 0                                         |
+|  13 | 0001 | 110 | 000 | 0 | 0 | 00 | 0000 | 0000000 |     | --AND GRx,M,ADR: GRx := GRx&PM(A) ; AR := GRx               |
+|  14 | 0110 | 010 | 000 | 0 | 0 | 00 | 0000 | 0000000 |     | AR := AR & PM(A)                                            |
+|  15 | 0000 | 100 | 110 | 0 | 0 | 00 | 0011 | 0000000 |     | GRx := AR, uPC := 0                                         |
+|  16 | 0000 | 001 | 000 | 0 | 0 | 10 | 0000 | 0000000 |     | --LSR GRx,M,Y: GRx >> Y ; LC := ADR                         |
+|  17 | 0001 | 110 | 000 | 0 | 0 | 01 | 0000 | 0000000 |     | AR := GRx, LC-- to move correct amount                      |
+|  18 | 1101 | 000 | 000 | 0 | 0 | 01 | 1100 | 0011010 |     | AR >> 1, LC--, Jump forward to 1A if LC=0                   |
+|  19 | 0000 | 000 | 000 | 0 | 0 | 00 | 0101 | 0011000 |     | Jump back to 18                                             |
+|  1A | 0000 | 100 | 110 | 0 | 0 | 00 | 0011 | 0000000 |     | GRx := AR, uPC := 0                                         |
+|  1B | 0000 | 000 | 000 | 0 | 0 | 00 | 1000 | 0011111 |     | --BNE ADR: PC := Z==0 ? PC+1+ADR : PC+1 ; Jump to 1F if Z=1 |
+|  1C | 0001 | 001 | 000 | 0 | 0 | 00 | 0000 | 0000000 |     | --BRA ADR: PC := PC+1+ADR ; AR := IR                        |
+|  1D | 1000 | 011 | 000 | 0 | 0 | 00 | 0000 | 0000000 |     | AR := AR+PC                                                 |
+|  1E | 0000 | 100 | 011 | 0 | 0 | 00 | 0000 | 0000000 |     | PC := AR                                                    |
+|  1F | 0000 | 000 | 000 | 0 | 0 | 00 | 0011 | 0000000 |     | uPC := 0                                                    |
+|  20 | 0001 | 110 | 000 | 0 | 0 | 00 | 0000 | 0000000 |     | --CMP GRx,M,ADR: AR := GRx-PM(A) ; AR := GRx                |
+|  21 | 0101 | 010 | 000 | 0 | 0 | 00 | 0011 | 0000000 |     | AR := AR - PM(A), uPC := 0                                  |
+|  22 | 0000 | 000 | 000 | 0 | 0 | 00 | 1001 | 0100101 |     | --BGE ADR: Jump if >= ; N==1 ? uPC := 25                    |
+|  23 | 0000 | 000 | 000 | 0 | 0 | 00 | 1011 | 0011111 |     | O==1 ? uPC := 1F                                            |
+|  24 | 0000 | 000 | 000 | 0 | 0 | 00 | 1110 | 0011100 |     | O==0 uPC := 1C                                              |
+|  25 | 0000 | 000 | 000 | 0 | 0 | 00 | 1110 | 0011111 |     | O==0 ? uPC := 1F                                            |
+|  26 | 0000 | 000 | 000 | 0 | 0 | 00 | 1011 | 0011100 |     | O==1 uPC := 1C                                              |
+|  27 | 0000 | 000 | 000 | 0 | 0 | 00 | 1000 | 0011100 |     | --BEQ ADR: Jump if== ; Z==0 ? uPC := 1C                     |
+|  28 | 0000 | 000 | 000 | 0 | 0 | 00 | 0011 | 0000000 |     | uPC := 0                                                    |
+
+
+** K1
+| ADR | INS   | JMP |
+|-----+-------+-----|
+|  00 | HALT  |  OA |
+|  01 | LOAD  |  0B |
+|  02 | STORE |  0C |
+|  03 | ADD   |  0D |
+|  04 | SUB   |  10 |
+|  05 | AND   |  13 |
+|  06 | LSR   |  16 |
+|  07 | BNE   |  1B |
+|  08 | BRA   |  1C |
+|  09 | CMP   |  20 |
+|  0A | BGE   |  22 |
+|  0B | BEQ   |  27 |
+
+** K2
+| ADR | JMP |
+|-----+-----|
+|  00 |  03 |
+|  01 |  04 |
+|  10 |  05 |
+|  11 |  07 |
+
+* Uppgift 3
+** Program
+#+begin_src asm
+;;; r0: Current value.
+;;; r1: Next Value.
+;;; r2: Swap indicator
+;;; r3: Address counter 
+;;; DC: $00FF -- Array End
+;;; DD: $00E0 -- Array start
+;;; DE: ONE
+;;; DF: ZERO
+;;; E0: Start of array
+;;; FF: Array end
+START:
+	load r2 dir $DF		; Set swap indicator to 0.
+	load r3 dir $DD		; Set start pointer to $E0
+ITER:			; Single address pair iteration
+    load r1 idx $01		; Load indexed from pointer + 1
+	cmp r1	idx $00		; Compare next to current
+	bge NEXT_ADDR		; If next >= current, continue iteration
+SWAP:	
+	load r0 idx $00		; Load current value
+	store r1 idx $00	; Store next in current
+	store r0 idx $01	; Store current in next
+	load r2 dir $DE		; Set swapped flag to 1
+NEXT_ADDR:
+	add r3 dir $DE		; PTR++
+	cmp r3 dir $DC 		; PTR == $FF ?
+	bne ITER		; Not finished if not equal
+	cmp r2 dir $DF		; Have swapped?
+	bne START		; If yes, repeat
+	halt
+#+end_src
+
+** Assembler
+#+begin_src haskell
+  module Main where
+  import Data.Char (isSpace, toLower)
+  import Data.Maybe (fromMaybe)
+  import Data.List.Split (wordsBy)
+  import Data.Word (Word8)
+  import Numeric (readBin)
+  import System.IO (readFile)
+  import System.Environment (getArgs)
+  import Text.Printf (printf)
+
+  main = do
+    a <- getArgs
+    file <- readFile . head $ a
+    mapM_ print . assemble $ file
+
+  parse :: String -> [[String]]
+  parse =
+    map (wordsBy (`elem` " \t,"))
+    . filter (not . all isSpace)
+    . map (takeWhile (/=';'))
+    . lines
+    . map toLower
+
+
+  assemble prog = instructions
+    where
+      instructions = map (instruction labels) . filter (not . isLabel . head . fst) $ addresses
+      labels = assignLabels addresses
+      addresses = address parsed
+      parsed = parse prog
+
+  assignLabels =
+    map (\(line, addr) -> (init . head $ line, addr))
+    . filter (isLabel . head . fst)
+
+  getLabel :: [(String, Word8)] -> Word8 -> String -> Word8
+  getLabel dict current label = flip (-) (succ current) . fromMaybe 0 . lookup label $ dict
+
+  address =
+    zip <*> scanl (+) 0
+    . map lineVal
+
+
+  makeRegMode :: String -> String -> String
+  makeRegMode grx m = printf "%01x" . fst . head . readBin @Word8 $ (reg grx) ++ (mode m)
+  
+  instruction :: [(String, Word8)] -> ([String], Word8) -> String
+  instruction dict ([name, grx, m, '$':adr], n)
+    = printf "%02x: %s" n $ numberOf name ++ makeRegMode grx m ++ adr
+
+  instruction dict ([name, grx, m, label], n)
+    = printf "%02x: %s" n $ numberOf name ++ makeRegMode grx m ++ printf "%02x" (getLabel dict n label)
+
+  instruction dict ([name, '$':adr], n) = printf "%02x: %s" n $ numberOf name ++ "0" ++ adr
+  instruction dict ([name, label], n) = printf "%02x: %s" n $ numberOf name ++ "0" ++ printf "%02x" (getLabel dict n label)
+  instruction dict ([name], n) = printf "%02x: %s" n $ numberOf name ++ replicate 3 '0'
+
+
+  isLabel = (==':') . last
+
+  numberOf :: String -> String
+  numberOf name = printf "%01x" $ case name of
+    "halt" -> 0 :: Int 
+    "load" -> 1
+    "store" -> 2
+    "add" -> 3
+    "sub" -> 4
+    "and" -> 5
+    "lsr" -> 6
+    "bne" -> 7
+    "bra" -> 8
+    "cmp" -> 9
+    "bge" -> 10
+    "beq" -> 11
+
+
+  lineVal :: [String] -> Word8
+  lineVal [_,_,"imm",_] = 2
+  lineVal [_,_,_,_] = 1
+  lineVal [_,_] = 1
+  lineVal [x] = if isLabel x then 0 else 1
+
+  reg :: String -> String
+  reg = printf "%02b" . read @Int . tail
+
+
+  mode x = case x of
+    "dir" -> "00"
+    "imm" -> "01"
+    "ind" -> "10"
+    "idx" -> "11"
+#+end_src

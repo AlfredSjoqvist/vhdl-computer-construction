@@ -1,0 +1,4 @@
+[libraries]
+uart_lab.files = [
+	       'lab3/*.vhd'
+]
