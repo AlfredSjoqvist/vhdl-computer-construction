@@ -55,7 +55,7 @@ A VGA-based text rendering system using custom video RAM, character ROM, and PS/
 * CPU-driven video memory writes
 * Integrated keyboard decoding pipeline
 
-Demonstrates complete subsystem integration—CPU, peripherals, memory, and display output.
+Demonstrates complete subsystem integration, CPU, peripherals, memory, and display output.
 
 ## How to Run Simulations
 
